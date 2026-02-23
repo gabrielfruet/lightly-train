@@ -1,60 +1,64 @@
+#
+# Copyright (c) Lightly AG and affiliates.
+# All rights reserved.
+#
+# This source code is licensed under the license found in the
+# LICENSE file in the root directory of this source tree.
+#
 from __future__ import annotations
 
+from collections.abc import Sequence
 from contextlib import contextmanager
-from typing import Mapping, Sequence
 
-import cv2
 import numpy as np
 import torch
-from albumentations import DualTransform
-from numpy.typing import NDArray
-from torchvision.transforms import InterpolationMode, v2
+import torchvision.transforms.v2 as v2
 from torchvision.tv_tensors import BoundingBoxes, BoundingBoxFormat, Image
+from numpy.typing import NDArray
 
 from lightly_train._transforms.scale_jitter import generate_discrete_sizes
-from lightly_train.types import NDArrayBBoxes, NDArrayImage, NDArrayOBBoxes
+from lightly_train.types import NDArrayImage, NDArrayOBBoxes
 
 
 def numpy_image_to_tv_tensor_image(image_hwc: NDArrayImage) -> Image:
-    """
-    Convert a numpy image array to a torchvision tv_tensor Image.
+    """Convert a numpy image array to a torchvision tv_tensor Image.
 
     Args:
         image_hwc: A numpy array of shape (H, W, C) containing the image data.
+
     Returns:
         A torchvision tv_tensor Image containing the image data.
     """
     image_chw = image_hwc.transpose(2, 0, 1)
-
     return Image(image_chw)
 
 
 def numpy_obb_to_tv_tensor_obb(
     oriented_bboxes: NDArrayOBBoxes, canvas_size: tuple[int, int]
 ) -> BoundingBoxes:
-    """
-    Convert oriented bounding boxes in the format (x_center, y_center, width, height, angle)
-    to a torchvision tv_tensor BoundingBoxes object with format CXCYWHR.
+    """Convert oriented bounding boxes to a torchvision tv_tensor BoundingBoxes.
 
     Args:
-        oriented_bboxes: A numpy array of shape (n_boxes, 5) containing the oriented bounding boxes in (x_center, y_center, width, height, angle) format.
-    Returns:
-        A torchvision tv_tensor BoundingBoxes object containing the bounding boxes in CXCYWHR format.
+        oriented_bboxes: A numpy array of shape (n_boxes, 5) containing the
+            oriented bounding boxes in (x_center, y_center, width, height, angle) format.
+        canvas_size: A tuple (height, width) representing the canvas size.
 
+    Returns:
+        A torchvision tv_tensor BoundingBoxes object in CXCYWHR format.
     """
     return BoundingBoxes(
-        oriented_bboxes,
+        oriented_bboxes.astype(np.float64),  # type: ignore[arg-type]
         format=BoundingBoxFormat.CXCYWHR,
         canvas_size=canvas_size,
     )
 
 
 def image_hwc_height_width(image: NDArrayImage) -> tuple[int, int]:
-    """
-    Get the height and width of an image from its shape.
+    """Get the height and width of an image from its shape.
 
     Args:
         image: A numpy array of shape (H, W, C) containing the image data.
+
     Returns:
         A tuple (height, width) containing the height and width of the image.
     """
@@ -65,12 +69,14 @@ def convert_numpy_to_torchvision_input(
     image_hwc: NDArrayImage,
     oriented_bboxes: NDArrayOBBoxes | None,
 ) -> tuple[Image, BoundingBoxes | None]:
-    """
-    Convert a numpy image and oriented bounding boxes to torchvision tv_tensor Image and BoundingBoxes.
+    """Convert a numpy image and oriented bounding boxes to torchvision tv_tensors.
 
     Args:
         image_hwc: A numpy array of shape (H, W, C) containing the image data.
-        oriented_bboxes: A numpy array of shape (n_boxes, 5) containing the oriented bounding boxes in (x_center, y_center, width, height, angle) format, or None if there are no bounding boxes.
+        oriented_bboxes: A numpy array of shape (n_boxes, 5) containing the oriented
+            bounding boxes in (x_center, y_center, width, height, angle) format,
+            or None if there are no bounding boxes.
+
     Returns:
         A tuple containing the tv_tensors for Image and the BoundingBoxes if non-null.
     """
@@ -90,163 +96,28 @@ def convert_torchvision_to_numpy_output(
     tv_image: Image,
     tv_bboxes: BoundingBoxes | None,
 ) -> tuple[NDArrayImage, NDArrayOBBoxes | None]:
+    """Convert torchvision tv_tensors back to numpy arrays.
+
+    Args:
+        tv_image: A torchvision tv_tensor Image.
+        tv_bboxes: A torchvision tv_tensor BoundingBoxes, or None.
+
+    Returns:
+        A tuple containing the numpy image (HWC format) and bounding boxes.
+    """
     image_chw = tv_image.cpu().numpy()
     image_hwc = image_chw.transpose(1, 2, 0)
     bboxes = tv_bboxes.cpu().numpy() if tv_bboxes is not None else None
     return image_hwc, bboxes
 
 
-class TorchVisionTransformDispatcher(DualTransform):
-    def __init__(self, transform: v2.Transform, p: float = 1.0) -> None:
-        super().__init__(p=p)
-        self.transform = transform
-
-    def __call__(
-        self,
-        image: NDArrayImage,
-        bboxes: NDArrayBBoxes | None = None,
-        oriented_bboxes: NDArrayOBBoxes | None = None,
-        class_labels: NDArray[np.float64] | None = None,
-        **kwargs,
-    ) -> dict:
-        if bboxes is not None:
-            raise NotImplementedError(
-                "Support for Axis-aligned bounding boxes is exclusive to albumentations transforms."
-                "Please use an albumentations transform if you want to use axis-aligned bounding boxes."
-            )
-
-        tv_image, tv_bboxes = convert_numpy_to_torchvision_input(image, oriented_bboxes)
-        tv_image_out, tv_bboxes_out = self.transform(tv_image, tv_bboxes)
-        out_image, out_bboxes = convert_torchvision_to_numpy_output(
-            tv_image_out, tv_bboxes_out
-        )
-        return {
-            "image": out_image,
-            "oriented_bboxes": out_bboxes,
-            "class_labels": class_labels,
-        }
-
-
-CV2_INTERPOLATION_MODE = int
-
-CV2_TO_TV_INTERPOLATION: Mapping[CV2_INTERPOLATION_MODE, InterpolationMode] = {
-    cv2.INTER_NEAREST: InterpolationMode.NEAREST,
-    cv2.INTER_LINEAR: InterpolationMode.BILINEAR,
-    cv2.INTER_CUBIC: InterpolationMode.BICUBIC,
-    cv2.INTER_AREA: InterpolationMode.BOX,
-    cv2.INTER_LANCZOS4: InterpolationMode.LANCZOS,
-}
-
-
-def _get_interpolation_mode(
-    cv2_interpolation: CV2_INTERPOLATION_MODE,
-) -> InterpolationMode:
-    return CV2_TO_TV_INTERPOLATION[cv2_interpolation]
-
-
-TORCHVISION_ROTATE_SUPPORTED_INTERPOLATION_MODES = {
-    InterpolationMode.NEAREST,
-    InterpolationMode.BILINEAR,
-}
-
-
-def _check_supported_interpolation_mode_for_rotate(
-    interpolation: InterpolationMode,
-) -> None:
-    if interpolation not in TORCHVISION_ROTATE_SUPPORTED_INTERPOLATION_MODES:
-        raise ValueError(
-            f"Unsupported interpolation mode {interpolation} for rotation. "
-            f"Supported modes are: {TORCHVISION_ROTATE_SUPPORTED_INTERPOLATION_MODES}"
-        )
-
-
-class TorchVisionRotate90(TorchVisionTransformDispatcher):
-    def __init__(self, p: float = 1.0) -> None:
-        transform = v2.RandomChoice(
-            [
-                v2.RandomRotation(degrees=[0, 0]),
-                v2.RandomRotation(degrees=[90, 90], expand=True),
-                v2.RandomRotation(degrees=[180, 180]),
-                v2.RandomRotation(degrees=[270, 270], expand=True),
-            ]
-        )
-
-        super().__init__(
-            transform=transform,
-            p=p,
-        )
-
-
-class TorchVisionRotate(TorchVisionTransformDispatcher):
-    def __init__(
-        self,
-        degrees: float | tuple[float, float],
-        interpolation: CV2_INTERPOLATION_MODE,
-        p: float = 1.0,
-    ) -> None:
-        tv_interpolation = _get_interpolation_mode(interpolation)
-        _check_supported_interpolation_mode_for_rotate(tv_interpolation)
-
-        super().__init__(
-            transform=v2.RandomRotation(
-                degrees=degrees, interpolation=tv_interpolation
-            ),
-            p=p,
-        )
-
-
-class TorchVisionHorizontalFlip(TorchVisionTransformDispatcher):
-    def __init__(self, p: float) -> None:
-        super().__init__(v2.RandomHorizontalFlip(p=1))
-
-
-class TorchVisionVerticalFlip(TorchVisionTransformDispatcher):
-    def __init__(self, p: float) -> None:
-        super().__init__(v2.RandomVerticalFlip(p=1))
-
-
-class TorchVisionResize(TorchVisionTransformDispatcher):
-    def __init__(
-        self,
-        height: int,
-        width: int,
-        interpolation_mode: CV2_INTERPOLATION_MODE = cv2.INTER_LINEAR,
-    ) -> None:
-        super().__init__(
-            v2.Resize(
-                size=(height, width),
-                interpolation=CV2_TO_TV_INTERPOLATION[interpolation_mode],
-            )
-        )
-
-
-class TorchVisionRandomIoUCrop(TorchVisionTransformDispatcher):
-    def __init__(
-        self,
-        min_scale,
-        max_scale,
-        min_aspect_ratio,
-        max_aspect_ratio,
-        sampler_options,
-        crop_trials,
-        iou_trials,
-        p: float,
-    ) -> None:
-        super().__init__(
-            v2.RandomIoUCrop(
-                min_scale=min_scale,
-                max_scale=max_scale,
-                min_aspect_ratio=min_aspect_ratio,
-                max_aspect_ratio=max_aspect_ratio,
-                sampler_options=sampler_options,
-                trials=iou_trials,
-            ),
-            p=p,
-        )
-
-
 class SeededRandomChoice(v2.Transform):
-    def __init__(self, transforms: Sequence[v2.Transform], seed: int):
+    """A transform that randomly selects one of the given transforms using a seeded random choice.
+
+    This is useful for deterministic random selection during inference or validation.
+    """
+
+    def __init__(self, transforms: Sequence[v2.Transform], seed: int = 42) -> None:
         super().__init__()
         self.transforms = transforms
         self.generator = torch.Generator().manual_seed(seed)
@@ -255,19 +126,36 @@ class SeededRandomChoice(v2.Transform):
     def _generate_idx(self) -> int:
         return int(
             torch.randint(
-                0, len(self.transforms), (1,), generator=self.generator
+                0,
+                len(self.transforms),
+                (1,),
+                generator=self.generator,
             ).item()
         )
 
     def step(self) -> None:
+        """Advance to the next random transform."""
         self._current_idx = self._generate_idx()
 
-    def forward(self, *inputs):
+    def forward(self, *inputs: tuple) -> tuple:
         return self.transforms[self._current_idx](*inputs)
 
 
-class TorchVisionScaleJitter(TorchVisionTransformDispatcher):
-    transform: SeededRandomChoice
+class TorchVisionScaleJitter(v2.Transform):
+    """Scale jitter transform using torchvision v2.
+
+    This is a pure torchvision transform that randomly selects from a set of discrete
+    sizes for resizing the image. Unlike the albumentations-based version, this works
+    directly with torchvision TVTensors.
+
+    Args:
+        sizes: Optional sequence of (height, width) tuples to choose from.
+        target_size: Target (height, width) when sizes is not provided.
+        scale_range: Range of scale factors (min, max) when sizes is not provided.
+        num_scales: Number of discrete scales to generate when sizes is not provided.
+        divisible_by: If provided, sizes will be adjusted to be divisible by this value.
+        seed: Random seed for deterministic transform selection.
+    """
 
     def __init__(
         self,
@@ -277,10 +165,9 @@ class TorchVisionScaleJitter(TorchVisionTransformDispatcher):
         scale_range: tuple[float, float] | None = None,
         num_scales: int | None = None,
         divisible_by: int | None = None,
-        p: float = 1.0,
         seed: int = 42,
     ) -> None:
-
+        super().__init__()
         self.heights, self.widths = zip(
             *generate_discrete_sizes(
                 sizes=sizes,
@@ -296,12 +183,16 @@ class TorchVisionScaleJitter(TorchVisionTransformDispatcher):
             for h, w in zip(self.heights, self.widths)
         ]
 
-        super().__init__(
-            transform=SeededRandomChoice(transforms, seed=seed),
-            p=p,
-        )
+        self._transform = SeededRandomChoice(transforms, seed=seed)
 
     @contextmanager
     def same_seed(self):
-        self.transform.step()
-        yield
+        """Context manager to step through transforms while keeping the same seed."""
+        self._transform.step()
+        try:
+            yield self
+        finally:
+            self._transform.step()
+
+    def forward(self, *inputs: tuple) -> tuple:
+        return self._transform(*inputs)
