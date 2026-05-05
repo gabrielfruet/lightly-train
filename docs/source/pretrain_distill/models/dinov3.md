@@ -117,7 +117,8 @@ distillation from DINOv3 ViT-L/16.
 For ViT models, the patch size is encoded in the model name by default (for example,
 `vitt16` or `vits16`). You can still override it via `model_args["patch_size"]` when
 loading the model. If you provide `model_args["patch_size"]` for a ViT model whose name
-already encodes a patch size, LightlyTrain will log a warning.
+already encodes a patch size, LightlyTrain will log a warning. See the
+[Training Settings](#train-settings) page for details.
 
 ### ConvNeXt Models
 
