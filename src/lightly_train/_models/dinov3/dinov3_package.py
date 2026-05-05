@@ -295,9 +295,14 @@ class DINOv3Package(Package):
         model_builder = model_info["builder"]
 
         # Update the patch size argument from the model_builder.
-        # If patch_size is None the model is not a ViT and the patch_size must not be set.
-        if patch_size is not None and "patch_size" not in args:
-            args["patch_size"] = int(patch_size)
+        # If patch_size is None the model is not a ViT and the patch_size should only be set if explicitly given.
+        if patch_size is not None:
+            if "patch_size" not in args:
+                args["patch_size"] = int(patch_size)
+            else:
+                logger.warning(
+                    f"Patch size from model name {patch_size} got overwritten by patch size argument {args['patch_size']}"
+                )
 
         if (
             load_weights
