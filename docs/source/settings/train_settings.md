@@ -102,12 +102,11 @@ restored correctly.
 Dictionary with model-specific training parameters. The available keys vary by
 architecture. The table lists the most commonly tuned options:
 
-| Key                                             | Type                      | Description                                                                   |
-| ----------------------------------------------- | ------------------------- | ----------------------------------------------------------------------------- |
-| [`lr`](#lr)                                     | `float`                   | Base learning rate.                                                           |
-| [`backbone_weights`](#backbone_weights)         | `Path`<br>`str`<br>`None` | Path to backbone weights to load.                                             |
-| [`metric_log_classwise`](#metric_log_classwise) | `bool`                    | Whether to log class-wise metrics.                                            |
-| [`patch_size`](#patch_size)                     | `int`                     | DINOv3 ViT default from model name; overridden by `model_args["patch_size"]`. |
+| Key                                             | Type                      | Description                        |
+| ----------------------------------------------- | ------------------------- | ---------------------------------- |
+| [`lr`](#lr)                                     | `float`                   | Base learning rate.                |
+| [`backbone_weights`](#backbone_weights)         | `Path`<br>`str`<br>`None` | Path to backbone weights to load.  |
+| [`metric_log_classwise`](#metric_log_classwise) | `bool`                    | Whether to log class-wise metrics. |
 
 #### `lr`
 
@@ -195,12 +194,6 @@ lightly_train.train_object_detection(
     },
 )
 ```
-
-#### `patch_size`
-
-DINOv3 ViT models encode a default patch size in the model name (for example, `vitt16`).
-You can override it with `model_args["patch_size"]`; LightlyTrain will log a warning if
-the value differs from the name.
 
 (train-settings-training-loop)=
 

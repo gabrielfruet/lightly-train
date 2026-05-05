@@ -281,7 +281,8 @@ class DINOv3Package(Package):
         load_weights: bool = True,
     ) -> DinoVisionTransformer | ConvNeXt:
         """
-        Get a DINOv3 ViT model by name. Here the student version is build.
+        Get a DINOv3 model by name. Can be either a ConvNeXt or ViT.
+        Here the student version is build.
         """
         args: dict[str, Any] = {"in_chans": num_input_channels}
         if model_args is not None:
