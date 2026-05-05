@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import copy
 import math
-from typing import Any, ClassVar
+from typing import Any, ClassVar, Literal
 
 import torch
 from lightning_fabric import Fabric
@@ -22,6 +22,8 @@ from torch.optim.lr_scheduler import (  # type: ignore[attr-defined]
     LinearLR,
     LRScheduler,
 )
+
+from lightly.utils.scheduler import CosineWarmupScheduler
 
 from lightly_train._configs.validate import no_auto
 from lightly_train._data.yolo_object_detection_dataset import (
@@ -119,6 +121,7 @@ class DINOv3LTDETRObjectDetectionTrainArgs(TrainModelArgs):
     backbone_lr_factor: float = 1e-2
 
     # Scheduler configuration
+    scheduler: Literal["linear", "flat-cosine"] = "linear"
     scheduler_start_factor: float = 0.01
     lr_warmup_steps: int = Field(
         default=2000,
@@ -527,12 +530,20 @@ class DINOv3LTDETRObjectDetectionTrain(TrainModel):
             betas=self.model_args.optimizer_betas,
             weight_decay=self.model_args.weight_decay,
         )
-        # TODO (Thomas, 11/25): Change to flat-cosine with warmup.
-        scheduler = LinearLR(
-            optimizer=optim,
-            total_iters=self.model_args.lr_warmup_steps,
-            start_factor=self.model_args.scheduler_start_factor,
-        )
+        if self.model_args.scheduler == "linear":
+            scheduler = LinearLR(
+                optimizer=optim,
+                total_iters=self.model_args.lr_warmup_steps,
+                start_factor=self.model_args.scheduler_start_factor,
+            )
+        else:
+            scheduler = CosineWarmupScheduler(
+                optimizer=optim,
+                warmup_epochs=min(total_steps, self.model_args.lr_warmup_steps),
+                max_epochs=total_steps,
+                start_value=1.0,
+                warmup_start_value=self.model_args.scheduler_start_factor,
+            )
 
         return optim, scheduler
 
