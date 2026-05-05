@@ -296,8 +296,9 @@ class DINOv3Package(Package):
 
         # Update the patch size argument from the model_builder.
         # If patch_size is None the model is not a ViT and the patch_size must not be set.
-        if patch_size is not None:
+        if patch_size is not None and "patch_size" not in args:
             args["patch_size"] = int(patch_size)
+
         if (
             load_weights
             and ("weights" not in args)
@@ -305,11 +306,14 @@ class DINOv3Package(Package):
         ):
             weight_path = _maybe_download_weights(model_getter=model_info)
             args["weights"] = str(weight_path)
+
         if not load_weights:
             args["weights"] = None
             args["pretrained"] = False
+
         if load_weights and args.get("weights") is not None:
             args["pretrained"] = True
+
         model = model_builder(**args)
         assert isinstance(model, (DinoVisionTransformer, ConvNeXt))
         return model
