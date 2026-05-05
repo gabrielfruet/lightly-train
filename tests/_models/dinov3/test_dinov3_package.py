@@ -168,9 +168,7 @@ class TestDINOv3Package:
         assert "get_model('<XYZ>')" in log_output
         assert "get_model('dinov3/" not in log_output
 
-    @pytest.mark.parametrize(
-        "model_name, patch_size", [("vitt16", 41), ("convnext-tiny", 32)]
-    )
+    @pytest.mark.parametrize("model_name, patch_size", [("vitt16", 41), ("vitt32", 22)])
     def test_get_model__patch_size_arg_gets_precedence_over_model_name(
         self, model_name: str, patch_size: int
     ) -> None:
