@@ -10,7 +10,9 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from lightly.utils.scheduler import CosineWarmupScheduler
 from torch import nn
+from torch.optim.lr_scheduler import LinearLR
 
 from lightly_train._data.yolo_object_detection_dataset import (
     YOLOObjectDetectionDataArgs,
@@ -101,3 +103,29 @@ def _create_train_model(
         gradient_accumulation_steps=1,
     )
     return train_model
+
+
+@pytest.mark.parametrize(
+    ("scheduler_name", "scheduler_cls"),
+    [
+        ("linear", LinearLR),
+        ("flat-cosine", CosineWarmupScheduler),
+    ],
+)
+def test_get_optimizer__scheduler_modes(
+    scheduler_name: str,
+    scheduler_cls: type[LinearLR] | type[CosineWarmupScheduler],
+) -> None:
+    train_model = _create_train_model(
+        DINOv2LTDETRObjectDetectionTrainArgs(scheduler=scheduler_name)
+    )
+    optimizer, scheduler = train_model.get_optimizer(
+        total_steps=1000,
+        global_batch_size=16,
+    )
+
+    assert isinstance(scheduler, scheduler_cls)
+    optimizer.step()
+    scheduler.step()
+    assert len(scheduler.get_last_lr()) == len(optimizer.param_groups)
+    scheduler.load_state_dict(scheduler.state_dict())
