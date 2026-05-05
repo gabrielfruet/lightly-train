@@ -198,10 +198,9 @@ lightly_train.train_object_detection(
 
 #### `patch_size`
 
-DINOv3 ViT models encode a default patch size in the model name (for example,
-`vitt16`). You can override it with `model_args["patch_size"]`; LightlyTrain will log a
-warning if the value differs from the name.
-
+DINOv3 ViT models encode a default patch size in the model name (for example, `vitt16`).
+You can override it with `model_args["patch_size"]`; LightlyTrain will log a warning if
+the value differs from the name.
 
 (train-settings-training-loop)=
 
