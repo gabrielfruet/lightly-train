@@ -107,6 +107,7 @@ architecture. The table lists the most commonly tuned options:
 | [`lr`](#lr)                                     | `float`                   | Base learning rate.                |
 | [`backbone_weights`](#backbone_weights)         | `Path`<br>`str`<br>`None` | Path to backbone weights to load.  |
 | [`metric_log_classwise`](#metric_log_classwise) | `bool`                    | Whether to log class-wise metrics. |
+| [`patch_size`](#patch_size)                     | `int`                     | DINOv3 ViT default from model name; overridden by `model_args["patch_size"]`. |
 
 #### `lr`
 
