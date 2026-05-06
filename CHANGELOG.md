@@ -9,6 +9,8 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Added
 
+- Add `model_args.scheduler` support for LTDETR object detection with explicit `linear` and `flat-cosine` scheduler modes.
+
 ### Changed
 
 ### Deprecated
@@ -16,8 +18,6 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ### Removed
 
 ### Fixed
-
-- Raise an error for unknown LTDETR scheduler values instead of silently falling back to CosineWarmupScheduler.
 
 ### Security
 

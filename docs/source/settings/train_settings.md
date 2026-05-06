@@ -107,6 +107,7 @@ architecture. The table lists the most commonly tuned options:
 | [`lr`](#lr)                                     | `float`                   | Base learning rate.                |
 | [`backbone_weights`](#backbone_weights)         | `Path`<br>`str`<br>`None` | Path to backbone weights to load.  |
 | [`metric_log_classwise`](#metric_log_classwise) | `bool`                    | Whether to log class-wise metrics. |
+| [`scheduler`](#scheduler)                       | `str`                     | Scheduler mode for LTDETR training. |
 
 #### `lr`
 
@@ -191,6 +192,26 @@ lightly_train.train_object_detection(
     ...,
     model_args={
         "metric_log_classwise": True,
+    },
+)
+```
+
+#### `scheduler`
+
+Scheduler mode for LTDETR object detection training. Supported values are:
+
+- `"linear"`: linear warmup via `LinearLR`
+- `"flat-cosine"`: warmup followed by cosine decay via `CosineWarmupScheduler`
+
+Any other value raises a `ValueError`.
+
+```python
+import lightly_train
+
+lightly_train.train_object_detection(
+    ...,
+    model_args={
+        "scheduler": "flat-cosine",
     },
 )
 ```
