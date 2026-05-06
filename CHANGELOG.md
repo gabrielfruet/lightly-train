@@ -17,6 +17,8 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Fixed
 
+- Raise an error for unknown LTDETR scheduler values instead of silently falling back to CosineWarmupScheduler.
+
 ### Security
 
 ## [0.15.0] - 2026-04-16
