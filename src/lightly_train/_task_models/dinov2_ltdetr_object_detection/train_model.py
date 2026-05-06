@@ -534,13 +534,18 @@ class DINOv2LTDETRObjectDetectionTrain(TrainModel):
                 total_iters=self.model_args.lr_warmup_steps,
                 start_factor=self.model_args.scheduler_start_factor,
             )
-        else:
+        elif self.model_args.scheduler == "flat-cosine":
             scheduler = CosineWarmupScheduler(
                 optimizer=optim,
                 warmup_epochs=min(total_steps, self.model_args.lr_warmup_steps),
                 max_epochs=total_steps,
                 start_value=1.0,
                 warmup_start_value=self.model_args.scheduler_start_factor,
+            )
+        else:
+            raise ValueError(
+                f"Unknown scheduler: {self.model_args.scheduler!r}. "
+                "Expected 'linear' or 'flat-cosine'."
             )
         return optim, scheduler
 
