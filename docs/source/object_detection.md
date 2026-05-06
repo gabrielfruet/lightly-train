@@ -617,9 +617,6 @@ All models are
 
 See [](train-settings) on how to configure training settings.
 
-LTDETR training also supports `model_args.scheduler` with `"linear"` and
-`"flat-cosine"` values. Invalid values raise a `ValueError`.
-
 (object-detection-logging)=
 
 (object-detection-tensorboard)=
